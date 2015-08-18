@@ -140,6 +140,9 @@ for(1..$lines){ #num lines
                     $c="ge";
                 }
             }
+            if (($b eq "e" or $b eq "u") and $c eq ""){
+                $c="h";
+            }
             $w=$a.$b.$c;
             $w=~s/(.)je$/$1ge/;
             #$w=~s/x$/cks/;
