@@ -1,6 +1,6 @@
 #! /usr/bin/perl -w
 
-# Copyright 2012 Ken Takusagawa
+# Copyright 2015 Ken Takusagawa
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,9 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 $iter=2;
-$lines=1;
-$onlyspace=0;
-$digraph=1;
+$lines=10;
+
 $syllables=1;
 open RAND,"/dev/urandom" or die;
 
@@ -26,59 +25,140 @@ open RAND,"/dev/urandom" or die;
 # is T reachable because of the angled rows?
 #@letters=&subtract(\@letters,['t']);
 #@letters=&subtract(\@letters,['y','g','h','b','n']);
-@letters=&subtract(\@letters,['y','b']); #long reach
+#@letters=&subtract(\@letters,['y','b']); #long reach
 #print @letters;
 @vowels=qw/a e i o u/;
-@consonant1=&subtract(\@letters,\@vowels);
-@consonants=&subtract(\@consonant1,['q']);
+@consonants=&subtract(\@letters,\@vowels);
+@consonants=&subtract(\@consonants,['q']);
 
-push @consonants,"" if $digraph; #non-three-letter words
+push @consonants,""; #non-three-letter words
 
-push @consonants,('th','ch','sh','ph') if $digraph; #ph
+push @consonants,('th','ch','sh') ; #ph
 
-@initials=&subtract(\@consonants,['x']);
-@tails=&subtract(\@consonants,['y','h','w']);
-push @initials,qw(wh pr st fr tr cl sp pl sc gr kn cr fl sm) if $digraph;
-push @tails,('ng','nd','ll','st','nt','ts','ld','ns','ss','nk','ck','ds','gh') if $digraph;
-
-#easily reachable punctuation on a US Keyboard
-@punctuation=(' ', ';',',','.','/','\'');
-
-push @punctuation,(':','<','>','?','"'); #shifted
-#shift OK because left shift is fairly easy to reach
-
-@punctuation=(' ') if $onlyspace;
+@initials=@consonants;
+@initials=&subtract(\@initials,['x']);
+@initials=&subtract(\@initials,['k']);
+#push @initials,qw(wh pr st fr tr cl sp pl sc gr kn cr fl sm);
+#push @initials,qw(pr st fr tr cl sp pl sc gr cr fl sm qu);
+push @initials,qw(qu);
+#kn ps
+push @initials,qw( st fr cl tr br cr pr dr sp fl sc sl gr bl pl sm sw sn gl str scr thr spr);
 
 
+@tails=@consonants;
+@tails=&subtract(\@tails,['y','h','w']);
+@tails=&subtract(\@tails,['c','k']);
+#push @tails,('ng','nd','ll','st','nt','ts','ld','ns','ss','nk','ck','ds','gh') ;
+push @tails,qw/st nd nt ns ts ck rt rs ld ls cked ps ds rn ng ms ft rm lt gs rd lf mp lk rl rk bs rg nk lm rb nts nds/;
+#avoid silent b in mb, p in pt
+
+push @vowels,qw(oo ee au);
+push @vowels,qw(ai ie oa);
+# manually do long final e
+$shorten{ai}="a";
+#$shorten{ee}="e";
+$shorten{ie}="i";
+$shorten{oa}="o";
+$shorten{oo}="u";
+
+@punctuation=(32..126);
+#@punctuation=&subtract(\@punctuation,[48..57]);
+@punctuation=&subtract(\@punctuation,[65..90]);
+@punctuation=&subtract(\@punctuation,[97..122]);
+@punctuation=map(chr,@punctuation);
+#@punctuation=("7");
+
+#50 b d f g j l m n p r s t v x z  th ch sh st nd nt ns ts ck rt rs ld ls ct ps ds rn ng ms ft rm lt gs rd lf mp lk rl rk bs rg nk lm rb
+for(qw(b d f j l m n p r s t v x z  th ch sh st)){
+    $long_e{$_}=$_."e";
+}
+for(@tails){
+    next unless ($x,$y)=/^(.)([sd])$/;
+    next if $x =~ /[cg]$/;
+    die if defined($long_e{$_});
+    $long_e{$_}=$x."e".$y;
+}
+$long_e{ck}="ke";
+$long_e{cked}="ked";
+$long_e{ft}="fed";
 #&lengthprint(@initials);
 #&lengthprint(@vowels);
 #&lengthprint(@tails);
 #&lengthprint(@punctuation);
-$entropy=0;
-$entropy+=log(scalar(@initials));
-$entropy+=log(scalar(@vowels));
-$entropy+=log(scalar(@tails));
-$entropy+=log(scalar(@punctuation));
-$entropy/=log(2);
-#print STDERR scalar@initials,"*",scalar@vowels,"*",scalar@tails,"*",scalar@punctuation," = $entropy bits \n";
 for(1..$lines){ #num lines
-    for(1..$iter){
-        for(1..$syllables){
+    $_="";
+    for$i(1..$iter){
+        for$s(1..$syllables){
             #numsyllables.  1 syllable found better than 2 syllables.
             #average syllable length 10760/3080
             #versus 11 punctuation
-            print
-                &select_random(@initials),
-                &select_random(@vowels),
-                &select_random(@tails);
+            $a = &select_random(@initials);
+            $b = &select_random(@vowels);
+            $c = &select_random(@tails);
+            if ($a =~ /c$/ and $b =~ /^[ei]/) {
+                $a =~ s/c$/k/;
+                #print "got here\n"
+            }
+            #redo if ($b =~ /[aeiou]{2}/ and $c =~ /^[r]./);
+            if ($b=~/^(u|i|oa|au)$/ and $c =~ /^r/) {
+                redo;
+            };
+
+            if ($b eq "au" and $c eq ""){
+                $b="aw";
+            }
+            if ($b eq "ai" and $c eq ""){
+                $b="ay";
+            }
+            if ($b eq "ie" and $c eq "" and ($a ne "" and $a ne "y")){
+                $b="y";
+            }
+            if ($b eq "oa" and $c eq ""){
+                $b="ow";
+            }
+            if ($a eq "qu" and ($b =~ /^u/ or $b eq "y")){
+                $a="kw";
+            }
+            #redo if ((length$a)+(length$c))>3;
+            if (defined($shorten{$b}) and $long_e{$c}){
+                unless($a eq "qu" and $shorten{$b} =~ /^u/){
+                    $b=$shorten{$b};
+                    $c=$long_e{$c};
+                }
+            }
+            if ($c eq "j"){
+                if(length($b)==1){
+                    $c="dge";
+                }else{
+                    $c="ge";
+                }
+            }
+            $w=$a.$b.$c;
+            $w=~s/(.)je$/$1ge/;
+            #$w=~s/x$/cks/;
+            $w=~s/xe$/kes/;
+            $w=~s/este$/eest/;
+            $w=~s/uste$/oost/;
+            if ($w =~ /(ie|ai|ee|oo)[lr][^aeiouds]/){
+                redo;
+                #$w="#".$w;
+            }
+            #$w="#".$w if ($b=~/^(ie|ai|ee)$/ and $c =~ /^r./);
+            $_.=$w;
         }
-        print &select_random(@punctuation);
+        $s=0; #quell warning
+        $_ .= &select_random(@punctuation);
     }
-    print "\n";
+    $i=0; #quell warning
+    #print "$_\n";
+    redo unless /\d/;
+    redo if / $/;
+    print "$_\n";
 }
 sub lengthprint {
     print scalar@_;
-    print " ",@_,"\n";
+    print " $_" for(@_);
+    print "\n";
 }
 sub subtract {
     my $a=shift;
@@ -100,7 +180,7 @@ sub subtract {
     }
     @result;
 }
-sub printrefs{        
+sub printrefs{
 
     my $a=shift;
     my $b=shift;
@@ -118,7 +198,7 @@ sub getrand_maybe{
         -1;
     }
 }
-    
+
 sub getrand_test{
     my $target=shift;
     my $sample;
