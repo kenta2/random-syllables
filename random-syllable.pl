@@ -18,6 +18,11 @@
 $iter=2;
 $lines=10;
 
+if($ENV{testing}){ #testing
+    $iter=1;
+    $lines=$ENV{testing};
+}
+
 $syllables=1;
 open RAND,"/dev/urandom" or die;
 
@@ -66,7 +71,9 @@ $shorten{oo}="u";
 @punctuation=&subtract(\@punctuation,[65..90]);
 @punctuation=&subtract(\@punctuation,[97..122]);
 @punctuation=map(chr,@punctuation);
-#@punctuation=("7");
+if($ENV{testing}){
+    @punctuation=("7");
+}
 
 #50 b d f g j l m n p r s t v x z  th ch sh st nd nt ns ts ck rt rs ld ls ct ps ds rn ng ms ft rm lt gs rd lf mp lk rl rk bs rg nk lm rb
 for(qw(b d f j l m n p r s t v x z  th ch sh st)){
